@@ -1,34 +1,32 @@
-import { ref, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted } from 'vue';
+import type { DataPoint } from '../types/dashboard.types';
 
-export interface DataPoint {
-  timestamp: number;
-  value: number;
+interface StreamOptions {
+  intervalMs?: number;
+  windowSize?: number;
 }
 
-/**
- * Simulates a data stream at a safe, throttled rate.
- * Keeps only the latest 1000 data points for performance.
- */
-export function useDataStream() {
+export function useDataStream(options: StreamOptions = {}) {
+  const { intervalMs = 100, windowSize = 10000 } = options;
   const data = ref<DataPoint[]>([]);
-  let timer: NodeJS.Timeout | null = null;
+  let timer: number | undefined;
 
-  const pushRandom = () => {
-    const now = Date.now();
-    const newValue = 50 + Math.random() * 50; // 50–100 range
-    data.value.push({ timestamp: now, value: newValue });
-
-    // Keep only the last 1000 points
-    if (data.value.length > 1000) {
-      data.value.splice(0, data.value.length - 1000);
-    }
-  };
-
-  // Update every 500 ms (0.5 sec)
-  timer = setInterval(pushRandom, 500);
+  onMounted(() => {
+    timer = window.setInterval(() => {
+      const now = Date.now();
+      const next: DataPoint = {
+        timestamp: now,
+        value: 1000 + Math.sin(now / 500) * 50 + Math.random() * 20,
+      };
+      data.value.push(next);
+      if (data.value.length > windowSize) {
+        data.value.shift();
+      }
+    }, intervalMs);
+  });
 
   onUnmounted(() => {
-    if (timer) clearInterval(timer);
+    if (timer !== undefined) clearInterval(timer);
   });
 
   return { data };
